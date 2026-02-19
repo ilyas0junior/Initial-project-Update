@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useAuth, AuthProvider } from "@/hooks/useAuth";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
+import AdminUsers from "./pages/AdminUsers";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -18,9 +19,9 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
-  const { session, loading } = useAuth();
+  const { session, loading, isAdmin } = useAuth();
   if (loading) return <div className="flex min-h-screen items-center justify-center text-muted-foreground">Chargement...</div>;
-  if (session) return <Navigate to="/" replace />;
+  if (session) return <Navigate to={isAdmin ? "/admin/users" : "/"} replace />;
   return <>{children}</>;
 };
 
@@ -33,6 +34,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/admin/users" element={<ProtectedRoute><AdminUsers /></ProtectedRoute>} />
             <Route path="/auth" element={<PublicRoute><Auth /></PublicRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>

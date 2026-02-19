@@ -7,6 +7,7 @@ export interface Partenariat {
   nature: string;
   domaine: string;
   entite_cnss: string;
+  entite_concernee: string | null;
   partenaire: string;
   date_debut: string | null;
   date_fin: string | null;
@@ -21,8 +22,14 @@ const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
 
 export const TYPES_PARTENARIAT = [
   { value: "convention", label: "Convention" },
-  { value: "accord_cadre", label: "Accord-cadre" },
-  { value: "protocole", label: "Protocole" },
+  { value: "convention_cadre", label: "Convention Cadre" },
+  { value: "protocole_accord", label: "Protocole d'accord" },
+  { value: "avenant", label: "Avenant" },
+  { value: "academique", label: "Académique" },
+  { value: "strategique", label: "Stratégique" },
+  { value: "entreprise_privee", label: "Entreprise Privée" },
+  { value: "internationale", label: "Internationale" },
+  { value: "semi_public", label: "Semi Public" },
 ];
 
 export const NATURES = [
@@ -49,10 +56,11 @@ export const ENTITES_CNSS = [
 ];
 
 export const STATUTS = [
+  { value: "operationnel", label: "Opérationnel" },
+  { value: "non_operationnel", label: "Non opérationnel" },
+  { value: "echu", label: "Échu" },
+  { value: "a_renouveler", label: "À renouveler" },
   { value: "en_cours", label: "En cours" },
-  { value: "actif", label: "Actif" },
-  { value: "suspendu", label: "Suspendu" },
-  { value: "termine", label: "Terminé" },
 ];
 
 export const usePartenariats = () => {

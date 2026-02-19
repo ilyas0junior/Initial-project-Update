@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,7 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth, AUTH_STORAGE_KEY } from "@/hooks/useAuth";
+import { useAuth, type LocalUser, ADMIN_EMAILS } from "@/hooks/useAuth";
 import { Users, Mail, Lock, User } from "lucide-react";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
@@ -23,6 +24,7 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const { setSession } = useAuth();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -57,14 +59,30 @@ const Auth = () => {
         throw new Error(String(message));
       }
 
-      // data should be { id, email, fullName }
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(data));
-      setSession(data);
-
-      toast({
-        title: isLogin ? "Connexion réussie" : "Inscription réussie",
-        description: isLogin ? "Bienvenue !" : "Votre compte a été créé.",
-      });
+      if (isLogin) {
+        // Normalize to LocalUser so role is always set (backend returns fullName, role, nickname)
+        const user: LocalUser = {
+          id: String(data.id),
+          email: data.email,
+          fullName: data.fullName ?? data.full_name ?? "",
+          role: data.role === "admin" ? "admin" : "spectate",
+          nickname: data.nickname ?? data.fullName ?? data.email ?? "",
+        };
+        setSession(user);
+        toast({
+          title: "Connexion réussie",
+          description: `Bienvenue ${user.nickname || user.fullName || user.email} !`,
+        });
+        const goToAdmin = user.role === "admin" || (user.email && ADMIN_EMAILS.includes(user.email));
+        navigate(goToAdmin ? "/admin/users" : "/", { replace: true });
+      } else {
+        // Register: server returns { message } only; no session
+        toast({
+          title: "Demande envoyée",
+          description: data.message || "Un administrateur doit approuver votre compte.",
+        });
+        setIsLogin(true);
+      }
     } catch (error: any) {
       toast({
         title: "Erreur",

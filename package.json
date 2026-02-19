@@ -1,17 +1,13 @@
 {
+  "name": "agent-hub-backend",
+  "private": true,
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.6.2",
     "cors": "^2.8.6",
-    "express": "^5.2.1",
-    "react": "^19.2.4",
-    "react-router-dom": "^7.13.0",
-    "tailwindcss": "^4.1.18",
-    "tanstack": "^1.0.3"
+    "express": "^5.2.1"
   },
   "scripts": {
-    "dev": "vite",
-    "server": "node server.mjs",
-    "build": "vite build"
+    "server": "node server.mjs"
   }
 }

@@ -14,12 +14,14 @@ interface Props {
   onEdit: (p: Partenariat) => void;
   onDelete: (id: string) => void;
   onView: (p: Partenariat) => void;
+  /** If false, only "Voir" and export are available (spectator mode). */
+  canModify?: boolean;
 }
 
 const getLabel = (list: { value: string; label: string }[], value: string) =>
   list.find((i) => i.value === value)?.label || value;
 
-const PartenariatTable = ({ partenariats, onEdit, onDelete, onView }: Props) => {
+const PartenariatTable = ({ partenariats, onEdit, onDelete, onView, canModify = true }: Props) => {
   const [search, setSearch] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
@@ -32,11 +34,86 @@ const PartenariatTable = ({ partenariats, onEdit, onDelete, onView }: Props) => 
     );
   });
 
+  const exportToCsv = () => {
+    if (filtered.length === 0) return;
+
+    const header = [
+      "Titre",
+      "Type",
+      "Nature",
+      "Domaine",
+      "Entité responsable",
+      "Entité concernée",
+      "Partenaire",
+      "Date de signature",
+      "Date fin",
+      "Statut",
+      "Description",
+      "Créé le",
+      "Créé par",
+    ];
+
+    const escape = (value: unknown) => {
+      if (value === null || value === undefined) return "";
+      const str = String(value);
+      if (str.includes('"') || str.includes(",") || str.includes("\n")) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    const rows = filtered.map((p) => [
+      p.titre,
+      getLabel(TYPES_PARTENARIAT, p.type_partenariat),
+      p.nature,
+      p.domaine,
+      getLabel(ENTITES_CNSS, p.entite_cnss),
+      p.entite_concernee ? getLabel(ENTITES_CNSS, p.entite_concernee) : "",
+      p.partenaire,
+      p.date_debut ?? "",
+      p.date_fin ?? "",
+      p.statut,
+      p.description ?? "",
+      p.created_at,
+      p.created_by ?? "",
+    ]);
+
+    const csvContent = [
+      header.map(escape).join(","),
+      ...rows.map((row) => row.map(escape).join(",")),
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "partenariats.csv";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-4">
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input placeholder="Rechercher un partenariat..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative max-w-sm w-full">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Rechercher un partenariat..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={exportToCsv}
+          disabled={filtered.length === 0}
+        >
+          Exporter en Excel
+        </Button>
       </div>
 
       <div className="rounded-lg border border-border bg-card shadow-card overflow-hidden">
@@ -47,7 +124,7 @@ const PartenariatTable = ({ partenariats, onEdit, onDelete, onView }: Props) => 
               <TableHead className="font-semibold">Type</TableHead>
               <TableHead className="font-semibold">Partenaire</TableHead>
               <TableHead className="font-semibold">Entité CNSS</TableHead>
-              <TableHead className="font-semibold">Statut</TableHead>
+              <TableHead className="font-semibold">État</TableHead>
               <TableHead className="w-12"></TableHead>
             </TableRow>
           </TableHeader>
@@ -76,8 +153,12 @@ const PartenariatTable = ({ partenariats, onEdit, onDelete, onView }: Props) => 
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => onView(p)}><Eye className="mr-2 h-4 w-4" /> Voir</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => onEdit(p)}><Pencil className="mr-2 h-4 w-4" /> Modifier</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setDeleteId(p.id)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Supprimer</DropdownMenuItem>
+                        {canModify && (
+                          <>
+                            <DropdownMenuItem onClick={() => onEdit(p)}><Pencil className="mr-2 h-4 w-4" /> Modifier</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setDeleteId(p.id)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Supprimer</DropdownMenuItem>
+                          </>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>

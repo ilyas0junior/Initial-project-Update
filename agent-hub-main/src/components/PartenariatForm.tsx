@@ -24,6 +24,7 @@ const PartenariatForm = ({ open, onClose, onSubmit, partenariat, loading }: Part
       nature: partenariat?.nature || "public",
       domaine: partenariat?.domaine || "sante",
       entite_cnss: partenariat?.entite_cnss || "entite_centrale",
+      entite_concernee: partenariat?.entite_concernee || "entite_centrale",
       partenaire: partenariat?.partenaire || "",
       date_debut: partenariat?.date_debut || "",
       date_fin: partenariat?.date_fin || "",
@@ -36,6 +37,7 @@ const PartenariatForm = ({ open, onClose, onSubmit, partenariat, loading }: Part
   const nature = watch("nature");
   const domaine = watch("domaine");
   const entite_cnss = watch("entite_cnss");
+  const entite_concernee = watch("entite_concernee");
   const statut = watch("statut");
 
   const handleFormSubmit = (data: any) => {
@@ -104,13 +106,25 @@ const PartenariatForm = ({ open, onClose, onSubmit, partenariat, loading }: Part
               </Select>
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="entite_concernee">Entité concernée *</Label>
+              <Select value={entite_concernee} onValueChange={(v) => setValue("entite_concernee", v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {ENTITES_CNSS.map((e) => (
+                    <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="partenaire">Partenaire *</Label>
               <Input id="partenaire" {...register("partenaire", { required: true })} placeholder="Nom de l'organisme partenaire" />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="date_debut">Date de début</Label>
+              <Label htmlFor="date_debut">Date de signature</Label>
               <Input id="date_debut" type="date" {...register("date_debut")} />
             </div>
 
@@ -120,7 +134,7 @@ const PartenariatForm = ({ open, onClose, onSubmit, partenariat, loading }: Part
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="statut">Statut</Label>
+              <Label htmlFor="statut">État du partenariat</Label>
               <Select value={statut} onValueChange={(v) => setValue("statut", v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -133,8 +147,8 @@ const PartenariatForm = ({ open, onClose, onSubmit, partenariat, loading }: Part
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
-            <Textarea id="description" {...register("description")} placeholder="Description du partenariat..." rows={3} />
+            <Label htmlFor="description">Objet du partenariat</Label>
+            <Textarea id="description" {...register("description")} placeholder="Objet ou résumé du partenariat..." rows={3} />
           </div>
 
           <div className="flex justify-end gap-3 pt-2">

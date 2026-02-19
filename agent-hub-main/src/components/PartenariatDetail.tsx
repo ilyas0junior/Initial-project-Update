@@ -28,11 +28,12 @@ const PartenariatDetail = ({ partenariat, open, onClose }: Props) => {
     { icon: FileText, label: "Type", value: getLabel(TYPES_PARTENARIAT, partenariat.type_partenariat) },
     { icon: Globe, label: "Nature", value: getLabel(NATURES, partenariat.nature) },
     { icon: Landmark, label: "Domaine", value: getLabel(DOMAINES, partenariat.domaine) },
-    { icon: Building, label: "Entité CNSS", value: getLabel(ENTITES_CNSS, partenariat.entite_cnss) },
+    { icon: Building, label: "Entité responsable", value: getLabel(ENTITES_CNSS, partenariat.entite_cnss) },
+    { icon: Building, label: "Entité concernée", value: partenariat.entite_concernee ? getLabel(ENTITES_CNSS, partenariat.entite_concernee) : "—" },
     { icon: Building, label: "Partenaire", value: partenariat.partenaire },
-    { icon: Calendar, label: "Date de début", value: formatDate(partenariat.date_debut) },
+    { icon: Calendar, label: "Date de signature", value: formatDate(partenariat.date_debut) },
     { icon: Calendar, label: "Date de fin", value: formatDate(partenariat.date_fin) },
-    { icon: AlignLeft, label: "Description", value: partenariat.description },
+    { icon: AlignLeft, label: "Objet", value: partenariat.description },
   ];
 
   return (

@@ -8,19 +8,23 @@ interface Props {
 
 const PartenariatStats = ({ partenariats }: Props) => {
   const total = partenariats.length;
-  const actifs = partenariats.filter((p) => p.statut === "actif" || p.statut === "en_cours").length;
-  const suspendus = partenariats.filter((p) => p.statut === "suspendu").length;
-  const termines = partenariats.filter((p) => p.statut === "termine").length;
+  const operationnels = partenariats.filter((p) => p.statut === "operationnel").length;
+  const nonOperationnels = partenariats.filter((p) => p.statut === "non_operationnel").length;
+  const echus = partenariats.filter((p) => p.statut === "echu").length;
+  const aRenouveler = partenariats.filter((p) => p.statut === "a_renouveler").length;
+  const enCours = partenariats.filter((p) => p.statut === "en_cours").length;
 
   const stats = [
     { label: "Total", value: total, icon: Handshake, color: "text-primary" },
-    { label: "Actifs / En cours", value: actifs, icon: CheckCircle, color: "text-success" },
-    { label: "Suspendus", value: suspendus, icon: PauseCircle, color: "text-warning" },
-    { label: "Terminés", value: termines, icon: XCircle, color: "text-muted-foreground" },
+    { label: "Opérationnels", value: operationnels, icon: CheckCircle, color: "text-success" },
+    { label: "Non opérationnels", value: nonOperationnels, icon: XCircle, color: "text-muted-foreground" },
+    { label: "Échus", value: echus, icon: XCircle, color: "text-destructive" },
+    { label: "À renouveler", value: aRenouveler, icon: PauseCircle, color: "text-warning" },
+    { label: "En cours", value: enCours, icon: CheckCircle, color: "text-info" },
   ];
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
       {stats.map((stat) => (
         <Card key={stat.label} className="shadow-card border-border hover:shadow-elevated transition-shadow">
           <CardContent className="flex items-center gap-4 p-5">
