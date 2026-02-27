@@ -11,6 +11,7 @@ export interface Partenariat {
   partenaire: string;
   date_debut: string | null;
   date_fin: string | null;
+  date_prise_effet: string | null;
   statut: string;
   description: string | null;
   created_by: string | null;
@@ -19,6 +20,12 @@ export interface Partenariat {
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
+
+function getAuthHeaders(userId?: string) {
+  const h: Record<string, string> = {};
+  if (userId) h["X-User-Id"] = String(userId);
+  return h;
+}
 
 export const TYPES_PARTENARIAT = [
   { value: "convention", label: "Convention" },
@@ -63,11 +70,14 @@ export const STATUTS = [
   { value: "en_cours", label: "En cours" },
 ];
 
-export const usePartenariats = () => {
+export const usePartenariats = (userId?: string) => {
   return useQuery({
-    queryKey: ["partenariats"],
+    queryKey: ["partenariats", userId || null],
+    enabled: Boolean(userId),
     queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/api/partenariats`);
+      const response = await fetch(`${API_BASE_URL}/api/partenariats`, {
+        headers: getAuthHeaders(userId),
+      });
       if (!response.ok) {
         throw new Error("Erreur lors du chargement des partenariats.");
       }
@@ -77,14 +87,15 @@ export const usePartenariats = () => {
   });
 };
 
-export const useCreatePartenariat = () => {
+export const useCreatePartenariat = (userId?: string) => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (p: Omit<Partenariat, "id" | "created_at" | "updated_at">) => {
+    mutationFn: async (p: Omit<Partenariat, "id" | "created_at" | "updated_at" | "created_by">) => {
       const response = await fetch(`${API_BASE_URL}/api/partenariats`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...getAuthHeaders(userId),
         },
         body: JSON.stringify(p),
       });
@@ -98,7 +109,7 @@ export const useCreatePartenariat = () => {
   });
 };
 
-export const useUpdatePartenariat = () => {
+export const useUpdatePartenariat = (userId?: string) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...p }: Partial<Partenariat> & { id: string }) => {
@@ -106,6 +117,7 @@ export const useUpdatePartenariat = () => {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
+          ...getAuthHeaders(userId),
         },
         body: JSON.stringify(p),
       });
@@ -119,12 +131,13 @@ export const useUpdatePartenariat = () => {
   });
 };
 
-export const useDeletePartenariat = () => {
+export const useDeletePartenariat = (userId?: string) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
       const response = await fetch(`${API_BASE_URL}/api/partenariats/${id}`, {
         method: "DELETE",
+        headers: getAuthHeaders(userId),
       });
       if (!response.ok) {
         throw new Error("Erreur lors de la suppression du partenariat.");

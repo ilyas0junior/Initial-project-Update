@@ -33,6 +33,7 @@ const PartenariatDetail = ({ partenariat, open, onClose }: Props) => {
     { icon: Building, label: "Partenaire", value: partenariat.partenaire },
     { icon: Calendar, label: "Date de signature", value: formatDate(partenariat.date_debut) },
     { icon: Calendar, label: "Date de fin", value: formatDate(partenariat.date_fin) },
+    { icon: Calendar, label: "Date prise d'effet", value: formatDate(partenariat.date_prise_effet) },
     { icon: AlignLeft, label: "Objet", value: partenariat.description },
   ];
 

@@ -26,12 +26,39 @@ function serializeUser(doc, includeStatus = false) {
     fullName: doc.full_name ?? "",
     role,
     nickname: doc.nickname ?? doc.full_name ?? doc.email ?? "",
+    companyName: doc.company_name ?? null,
   };
   if (includeStatus) u.status = doc.status ?? "approved";
   return u;
 }
 
 const ADMIN_EMAILS = ["admin@local", "ilyas@local"];
+
+function isAdminDoc(user) {
+  if (!user) return false;
+  return user.role === "admin" || (user.email && ADMIN_EMAILS.includes(user.email));
+}
+
+async function requireUser(req, res, next) {
+  const userId = req.headers["x-user-id"];
+  if (!userId) {
+    return res.status(401).json({ message: "Non connecté." });
+  }
+  let user = null;
+  try {
+    user = await usersCol.findOne(
+      { _id: new ObjectId(String(userId)), status: "approved" },
+      { projection: { password_hash: 0 } }
+    );
+  } catch (_e) {}
+  if (!user) {
+    return res.status(401).json({ message: "Session invalide ou expirée. Déconnectez-vous puis reconnectez-vous." });
+  }
+  req.user = user;
+  req.userId = String(user._id);
+  req.isAdmin = isAdminDoc(user);
+  next();
+}
 
 async function requireAdmin(req, res, next) {
   const userId = req.headers["x-user-id"] || req.headers["X-User-Id"];
@@ -59,9 +86,7 @@ async function requireAdmin(req, res, next) {
       message: "Session invalide ou expirée. Déconnectez-vous puis reconnectez-vous.",
     });
   }
-  const isAdmin =
-    user.role === "admin" || (user.email && ADMIN_EMAILS.includes(user.email));
-  if (!isAdmin) {
+  if (!isAdminDoc(user)) {
     return res.status(403).json({ message: "Accès réservé à l'administrateur." });
   }
   next();
@@ -79,6 +104,7 @@ function serializePartenariat(doc) {
     partenaire: doc.partenaire,
     date_debut: doc.date_debut,
     date_fin: doc.date_fin,
+    date_prise_effet: doc.date_prise_effet ?? null,
     statut: doc.statut,
     description: doc.description,
     created_by: doc.created_by != null ? String(doc.created_by) : null,
@@ -101,33 +127,8 @@ app.use(express.json());
 
 // ---------- AUTH ----------
 app.post("/api/register", async (req, res) => {
-  const { email, password, fullName } = req.body;
-  if (!email || !password) {
-    return res.status(400).json({ message: "Email et mot de passe requis." });
-  }
-
-  const existing = await usersCol.findOne({ email });
-  if (existing) {
-    return res
-      .status(400)
-      .json({ message: "Cet email est déjà utilisé. Choisissez un autre email." });
-  }
-
-  const passwordHash = await bcrypt.hash(password, 10);
-  const now = new Date().toISOString();
-  await usersCol.insertOne({
-    email,
-    full_name: fullName || email,
-    password_hash: passwordHash,
-    role: "spectate",
-    nickname: null,
-    status: "pending",
-    created_at: now,
-  });
-
-  res.status(201).json({
-    message:
-      "Demande envoyée. Un administrateur doit approuver votre compte avant de vous connecter.",
+  res.status(403).json({
+    message: "Inscription désactivée. Contactez l'administrateur pour créer votre compte.",
   });
 });
 
@@ -180,6 +181,46 @@ app.get("/api/me", async (req, res) => {
 });
 
 // ---------- ADMIN: USERS ----------
+app.post("/api/users", requireAdmin, async (req, res) => {
+  const { email, password, fullName, companyName, role, nickname } = req.body ?? {};
+  if (!email || !password || !fullName || !companyName) {
+    return res.status(400).json({
+      message: "Champs obligatoires: email, mot de passe, nom complet, nom d'entreprise.",
+    });
+  }
+
+  const cleanEmail = String(email).trim().toLowerCase();
+  const cleanFullName = String(fullName).trim();
+  const cleanCompanyName = String(companyName).trim();
+  const cleanNickname = nickname != null ? String(nickname).trim() : "";
+  const cleanRole = role === "admin" ? "admin" : "spectate";
+
+  if (!cleanEmail || !cleanFullName || !cleanCompanyName) {
+    return res.status(400).json({ message: "Champs invalides." });
+  }
+
+  const existing = await usersCol.findOne({ email: cleanEmail }, { projection: { _id: 1 } });
+  if (existing) {
+    return res.status(400).json({ message: "Cet email est déjà utilisé." });
+  }
+
+  const passwordHash = await bcrypt.hash(String(password), 10);
+  const now = new Date().toISOString();
+  const doc = {
+    email: cleanEmail,
+    full_name: cleanFullName,
+    password_hash: passwordHash,
+    role: cleanRole,
+    nickname: cleanNickname || cleanFullName || cleanEmail,
+    status: "approved",
+    company_name: cleanCompanyName,
+    created_at: now,
+  };
+  const result = await usersCol.insertOne(doc);
+  const row = await usersCol.findOne({ _id: result.insertedId }, { projection: { password_hash: 0 } });
+  res.status(201).json(serializeUser(row, true));
+});
+
 app.get("/api/users", requireAdmin, async (req, res) => {
   const cursor = usersCol.aggregate([
     {
@@ -258,7 +299,7 @@ app.patch("/api/users/:id", requireAdmin, async (req, res) => {
   const { id } = req.params;
   const oid = toObjectId(id, res);
   if (!oid) return;
-  const { status, role, nickname } = req.body;
+  const { status, role, nickname, companyName } = req.body;
 
   const existing = await usersCol.findOne({ _id: oid }, { projection: { _id: 1, status: 1 } });
   if (!existing) {
@@ -269,6 +310,7 @@ app.patch("/api/users/:id", requireAdmin, async (req, res) => {
   if (status !== undefined && ["pending", "approved", "rejected"].includes(status)) update.status = status;
   if (role !== undefined && ["admin", "spectate"].includes(role)) update.role = role;
   if (nickname !== undefined) update.nickname = String(nickname).trim() || null;
+  if (companyName !== undefined) update.company_name = String(companyName).trim() || null;
 
   if (Object.keys(update).length === 0) {
     return res.status(400).json({ message: "Aucune modification fournie." });
@@ -311,12 +353,18 @@ async function seedAdmins() {
 }
 
 // ---------- PARTENARIATS ----------
-app.get("/api/partenariats", async (req, res) => {
-  const rows = await partenariatsCol.find({}).sort({ created_at: -1 }).toArray();
+app.get("/api/partenariats", requireUser, async (req, res) => {
+  const company = req.user && typeof req.user.company_name === "string" ? req.user.company_name.trim() : "";
+  const filter = req.isAdmin
+    ? {}
+    : company
+      ? { $or: [{ company_name: company }, { created_by: req.userId }] }
+      : { created_by: req.userId };
+  const rows = await partenariatsCol.find(filter).sort({ created_at: -1 }).toArray();
   res.json(rows.map(serializePartenariat));
 });
 
-app.post("/api/partenariats", async (req, res) => {
+app.post("/api/partenariats", requireUser, async (req, res) => {
   const {
     titre,
     type_partenariat,
@@ -327,16 +375,17 @@ app.post("/api/partenariats", async (req, res) => {
     partenaire,
     date_debut = null,
     date_fin = null,
+    date_prise_effet = null,
     statut,
     description = null,
-    created_by = null,
   } = req.body;
 
   if (!titre || !type_partenariat || !nature || !domaine || !entite_cnss || !partenaire || !statut) {
     return res.status(400).json({ message: "Champs obligatoires manquants." });
   }
 
-  const existing = await partenariatsCol.findOne({ titre });
+  const company = req.user && typeof req.user.company_name === "string" ? req.user.company_name.trim() : null;
+  const existing = await partenariatsCol.findOne({ titre, company_name: company });
   if (existing) {
     return res.status(400).json({ message: "Un partenariat avec ce titre existe déjà." });
   }
@@ -352,9 +401,11 @@ app.post("/api/partenariats", async (req, res) => {
     partenaire,
     date_debut,
     date_fin,
+    date_prise_effet,
     statut,
     description,
-    created_by: created_by ? String(created_by) : null,
+    created_by: req.userId,
+    company_name: company,
     created_at: now,
     updated_at: now,
   };
@@ -363,13 +414,19 @@ app.post("/api/partenariats", async (req, res) => {
   res.status(201).json(serializePartenariat(row));
 });
 
-app.put("/api/partenariats/:id", async (req, res) => {
+app.put("/api/partenariats/:id", requireUser, async (req, res) => {
   const { id } = req.params;
   const oid = toObjectId(id, res);
   if (!oid) return;
   const existing = await partenariatsCol.findOne({ _id: oid });
   if (!existing) {
     return res.status(404).json({ message: "Non trouvé" });
+  }
+  const company = req.user && typeof req.user.company_name === "string" ? req.user.company_name.trim() : "";
+  const isOwnerById = String(existing.created_by || "") === req.userId;
+  const isOwnerByCompany = company && String(existing.company_name || "") === company;
+  if (!req.isAdmin && !isOwnerById && !isOwnerByCompany) {
+    return res.status(403).json({ message: "Accès interdit." });
   }
 
   const {
@@ -382,12 +439,16 @@ app.put("/api/partenariats/:id", async (req, res) => {
     partenaire = existing.partenaire,
     date_debut = existing.date_debut,
     date_fin = existing.date_fin,
+    date_prise_effet = existing.date_prise_effet,
     statut = existing.statut,
     description = existing.description,
-    created_by = existing.created_by,
   } = req.body;
 
-  const duplicate = await partenariatsCol.findOne({ titre, _id: { $ne: oid } });
+  const duplicate = await partenariatsCol.findOne({
+    titre,
+    company_name: existing.company_name ?? null,
+    _id: { $ne: oid },
+  });
   if (duplicate) {
     return res.status(400).json({ message: "Un partenariat avec ce titre existe déjà." });
   }
@@ -406,9 +467,11 @@ app.put("/api/partenariats/:id", async (req, res) => {
         partenaire,
         date_debut,
         date_fin,
+        date_prise_effet: date_prise_effet ?? null,
         statut,
         description,
-        created_by: created_by ? String(created_by) : null,
+        created_by: existing.created_by != null ? String(existing.created_by) : null,
+        company_name: existing.company_name ?? null,
         updated_at: now,
       },
     }
@@ -417,10 +480,23 @@ app.put("/api/partenariats/:id", async (req, res) => {
   res.json(serializePartenariat(row));
 });
 
-app.delete("/api/partenariats/:id", async (req, res) => {
+app.delete("/api/partenariats/:id", requireUser, async (req, res) => {
   const { id } = req.params;
   const oid = toObjectId(id, res);
   if (!oid) return;
+  const existing = await partenariatsCol.findOne(
+    { _id: oid },
+    { projection: { created_by: 1, company_name: 1 } }
+  );
+  if (!existing) {
+    return res.status(404).json({ message: "Non trouvé" });
+  }
+  const company = req.user && typeof req.user.company_name === "string" ? req.user.company_name.trim() : "";
+  const isOwnerById = String(existing.created_by || "") === req.userId;
+  const isOwnerByCompany = company && String(existing.company_name || "") === company;
+  if (!req.isAdmin && !isOwnerById && !isOwnerByCompany) {
+    return res.status(403).json({ message: "Accès interdit." });
+  }
   const result = await partenariatsCol.deleteOne({ _id: oid });
   if (result.deletedCount === 0) {
     return res.status(404).json({ message: "Non trouvé" });

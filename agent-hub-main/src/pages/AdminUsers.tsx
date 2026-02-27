@@ -27,6 +27,7 @@ import {
   useUsersList,
   usePendingUsers,
   useUpdateUser,
+  useCreateUser,
   useLogs,
   type AdminUser,
   type UserRole,
@@ -49,6 +50,7 @@ export default function AdminUsers() {
   const { data: pending = [], isLoading: loadingPending } = usePendingUsers(userId, userEmail);
   const { data: logs = [], isLoading: loadingLogs, isError: errorLogs } = useLogs(userId, userEmail);
   const updateUser = useUpdateUser(userId, userEmail);
+  const createUser = useCreateUser(userId, userEmail);
   const { toast } = useToast();
 
   const [approveUser, setApproveUser] = useState<AdminUser | null>(null);
@@ -57,6 +59,10 @@ export default function AdminUsers() {
   const [editUser, setEditUser] = useState<AdminUser | null>(null);
   const [editNickname, setEditNickname] = useState("");
   const [editRole, setEditRole] = useState<UserRole>("spectate");
+  const [newFullName, setNewFullName] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [newCompanyName, setNewCompanyName] = useState("");
 
   const handleApprove = () => {
     if (!approveUser) return;
@@ -154,7 +160,7 @@ export default function AdminUsers() {
           <div>
             <h2 className="text-2xl font-bold text-foreground">Gestion des utilisateurs</h2>
             <p className="text-sm text-muted-foreground">
-              Approuver les demandes et gérer les autorités et pseudos
+              Créer des comptes et gérer les rôles et pseudos
             </p>
           </div>
         </div>
@@ -163,7 +169,7 @@ export default function AdminUsers() {
           <TabsList>
             <TabsTrigger value="pending" className="gap-2">
               <UserCheck className="h-4 w-4" />
-              Demandes en attente
+              Demandes (désactivé)
               {pending.length > 0 && (
                 <span className="rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground">
                   {pending.length}
@@ -183,10 +189,10 @@ export default function AdminUsers() {
           <TabsContent value="pending" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Demandes d&apos;inscription</CardTitle>
+                <CardTitle>Inscription</CardTitle>
                 <CardDescription>
-                  Approuvez ou refusez les demandes. Lors de l&apos;approbation, définissez un
-                  pseudonyme et le rôle (spectateur ou admin).
+                  L&apos;inscription publique est désactivée. Créez les comptes depuis l&apos;onglet
+                  Utilisateurs.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -243,6 +249,82 @@ export default function AdminUsers() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
+                <div className="mb-6 rounded-lg border border-border bg-card p-4">
+                  <h3 className="text-sm font-medium mb-3">Créer un utilisateur</h3>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    L&apos;utilisateur pourra modifier uniquement les données de son entreprise.
+                  </p>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="newFullName">Nom complet</Label>
+                      <Input
+                        id="newFullName"
+                        value={newFullName}
+                        onChange={(e) => setNewFullName(e.target.value)}
+                        placeholder="Jean Dupont"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="newCompany">Nom d&apos;entreprise</Label>
+                      <Input
+                        id="newCompany"
+                        value={newCompanyName}
+                        onChange={(e) => setNewCompanyName(e.target.value)}
+                        placeholder="Entreprise X"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="newEmail">Email</Label>
+                      <Input
+                        id="newEmail"
+                        type="email"
+                        value={newEmail}
+                        onChange={(e) => setNewEmail(e.target.value)}
+                        placeholder="user@local"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="newPassword">Mot de passe</Label>
+                      <Input
+                        id="newPassword"
+                        type="password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="••••••••"
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-4 flex justify-end">
+                    <Button
+                      onClick={() => {
+                        createUser.mutate(
+                          {
+                            fullName: newFullName.trim(),
+                            companyName: newCompanyName.trim(),
+                            email: newEmail.trim(),
+                            password: newPassword,
+                          },
+                          {
+                            onSuccess: () => {
+                              toast({ title: "Utilisateur créé" });
+                              setNewFullName("");
+                              setNewCompanyName("");
+                              setNewEmail("");
+                              setNewPassword("");
+                            },
+                            onError: (e: Error) =>
+                              toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+                          }
+                        );
+                      }}
+                      disabled={createUser.isPending}
+                      className="gradient-primary"
+                    >
+                      {createUser.isPending ? "Création..." : "Créer"}
+                    </Button>
+                  </div>
+                </div>
+
                 {loadingUsers ? (
                   <p className="text-muted-foreground">Chargement...</p>
                 ) : errorUsers ? (

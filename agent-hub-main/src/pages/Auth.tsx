@@ -12,15 +12,13 @@ import {
 } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth, type LocalUser, ADMIN_EMAILS } from "@/hooks/useAuth";
-import { Users, Mail, Lock, User } from "lucide-react";
+import { Users, Mail, Lock } from "lucide-react";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
 
 const Auth = () => {
-  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const { setSession } = useAuth();
@@ -31,11 +29,8 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      const endpoint = isLogin ? "/api/login" : "/api/register";
+      const endpoint = "/api/login";
       const payload: Record<string, unknown> = { email, password };
-      if (!isLogin) {
-        payload.fullName = fullName;
-      }
 
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: "POST",
@@ -53,36 +48,25 @@ const Auth = () => {
             typeof data === "object" &&
             "message" in data &&
             (data as any).message) ||
-          (isLogin
-            ? "Erreur lors de la connexion."
-            : "Erreur lors de l'inscription.");
+          "Erreur lors de la connexion.";
         throw new Error(String(message));
       }
 
-      if (isLogin) {
-        // Normalize to LocalUser so role is always set (backend returns fullName, role, nickname)
-        const user: LocalUser = {
-          id: String(data.id),
-          email: data.email,
-          fullName: data.fullName ?? data.full_name ?? "",
-          role: data.role === "admin" ? "admin" : "spectate",
-          nickname: data.nickname ?? data.fullName ?? data.email ?? "",
-        };
-        setSession(user);
-        toast({
-          title: "Connexion réussie",
-          description: `Bienvenue ${user.nickname || user.fullName || user.email} !`,
-        });
-        const goToAdmin = user.role === "admin" || (user.email && ADMIN_EMAILS.includes(user.email));
-        navigate(goToAdmin ? "/admin/users" : "/", { replace: true });
-      } else {
-        // Register: server returns { message } only; no session
-        toast({
-          title: "Demande envoyée",
-          description: data.message || "Un administrateur doit approuver votre compte.",
-        });
-        setIsLogin(true);
-      }
+      // Normalize to LocalUser so role is always set (backend returns fullName, role, nickname)
+      const user: LocalUser = {
+        id: String(data.id),
+        email: data.email,
+        fullName: data.fullName ?? data.full_name ?? "",
+        role: data.role === "admin" ? "admin" : "spectate",
+        nickname: data.nickname ?? data.fullName ?? data.email ?? "",
+      };
+      setSession(user);
+      toast({
+        title: "Connexion réussie",
+        description: `Bienvenue ${user.nickname || user.fullName || user.email} !`,
+      });
+      const goToAdmin = user.role === "admin" || (user.email && ADMIN_EMAILS.includes(user.email));
+      navigate(goToAdmin ? "/admin/users" : "/", { replace: true });
     } catch (error: any) {
       toast({
         title: "Erreur",
@@ -105,39 +89,21 @@ const Auth = () => {
             Gestion des Partenariats
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {isLogin ? "Connectez-vous à votre compte" : "Créez votre compte"}
+            Connectez-vous à votre compte
           </p>
         </div>
 
         <Card className="shadow-elevated border-border">
           <CardHeader className="pb-4">
             <CardTitle className="text-lg">
-              {isLogin ? "Connexion" : "Inscription"}
+              Connexion
             </CardTitle>
             <CardDescription>
-              {isLogin
-                ? "Entrez vos identifiants pour accéder au tableau de bord"
-                : "Remplissez le formulaire pour créer un compte"}
+              Entrez vos identifiants pour accéder au tableau de bord
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              {!isLogin && (
-                <div className="space-y-2">
-                  <Label htmlFor="fullName">Nom complet</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      id="fullName"
-                      placeholder="Jean Dupont"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      className="pl-10"
-                      required
-                    />
-                  </div>
-                </div>
-              )}
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <div className="relative">
@@ -174,24 +140,9 @@ const Auth = () => {
                 className="w-full gradient-primary"
                 disabled={loading}
               >
-                {loading
-                  ? "Chargement..."
-                  : isLogin
-                    ? "Se connecter"
-                    : "S'inscrire"}
+                {loading ? "Chargement..." : "Se connecter"}
               </Button>
             </form>
-            <div className="mt-4 text-center">
-              <button
-                type="button"
-                onClick={() => setIsLogin(!isLogin)}
-                className="text-sm text-primary hover:underline"
-              >
-                {isLogin
-                  ? "Pas encore de compte ? S'inscrire"
-                  : "Déjà un compte ? Se connecter"}
-              </button>
-            </div>
           </CardContent>
         </Card>
       </div>

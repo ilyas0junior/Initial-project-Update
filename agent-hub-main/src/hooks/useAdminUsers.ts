@@ -11,6 +11,7 @@ export interface AdminUser {
   fullName: string;
   role: UserRole;
   nickname: string;
+  companyName?: string | null;
   status?: UserStatus;
   /** Last login timestamp (from user_logs), null if never logged in */
   lastLogin?: string | null;
@@ -84,6 +85,33 @@ export function useUpdateUser(userId: string | undefined, userEmail?: string) {
         method: "PATCH",
         headers: getHeaders(userId, userEmail),
         body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((data as { message?: string }).message ?? "Erreur");
+      return data as AdminUser;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "users"] });
+    },
+  });
+}
+
+export function useCreateUser(userId: string | undefined, userEmail?: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: {
+      email: string;
+      password: string;
+      fullName: string;
+      companyName: string;
+      role?: UserRole;
+      nickname?: string;
+    }) => {
+      if (!userId && !userEmail) throw new Error("Non connecté");
+      const res = await fetch(`${API_BASE_URL}/api/users`, {
+        method: "POST",
+        headers: getHeaders(userId, userEmail),
+        body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error((data as { message?: string }).message ?? "Erreur");

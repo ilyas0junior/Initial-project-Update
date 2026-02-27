@@ -18,10 +18,11 @@ import PartenariatDetail from "@/components/PartenariatDetail";
 
 const Dashboard = () => {
   const { session, signOut, isAdmin } = useAuth();
-  const { data: partenariats = [], isLoading } = usePartenariats();
-  const createP = useCreatePartenariat();
-  const updateP = useUpdatePartenariat();
-  const deleteP = useDeletePartenariat();
+  const userId = session?.id;
+  const { data: partenariats = [], isLoading } = usePartenariats(userId);
+  const createP = useCreatePartenariat(userId);
+  const updateP = useUpdatePartenariat(userId);
+  const deleteP = useDeletePartenariat(userId);
   const { toast } = useToast();
 
   const [formOpen, setFormOpen] = useState(false);
@@ -30,7 +31,7 @@ const Dashboard = () => {
 
   const handleCreate = (data: any) => {
     createP.mutate(
-      { ...data, created_by: session?.id },
+      data,
       {
         onSuccess: () => {
           toast({ title: "Partenariat créé avec succès" });
@@ -90,22 +91,15 @@ const Dashboard = () => {
               Gestion des Partenariats
             </h2>
             <p className="text-sm text-muted-foreground">
-              {isAdmin ? "Suivez et gérez vos projets de partenariat" : "Consultez les partenariats (lecture seule)."}
+              {isAdmin ? "Suivez et gérez tous les partenariats" : "Suivez et gérez vos partenariats"}
             </p>
-            {!isAdmin && (
-              <p className="mt-1 text-xs text-muted-foreground">
-                Connectez-vous avec un compte administrateur pour modifier les partenariats et gérer les utilisateurs.
-              </p>
-            )}
           </div>
-          {isAdmin && (
-            <Button
-              onClick={() => setFormOpen(true)}
-              className="gradient-primary"
-            >
-              <Plus className="mr-2 h-4 w-4" /> Nouveau partenariat
-            </Button>
-          )}
+          <Button
+            onClick={() => setFormOpen(true)}
+            className="gradient-primary"
+          >
+            <Plus className="mr-2 h-4 w-4" /> Nouveau partenariat
+          </Button>
         </div>
 
         <div className="animate-fade-in">
@@ -123,7 +117,7 @@ const Dashboard = () => {
               onEdit={setEditItem}
               onDelete={handleDelete}
               onView={setViewItem}
-              canModify={isAdmin}
+              canModify={true}
             />
           )}
         </div>

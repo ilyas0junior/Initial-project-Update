@@ -28,6 +28,7 @@ const PartenariatForm = ({ open, onClose, onSubmit, partenariat, loading }: Part
       partenaire: partenariat?.partenaire || "",
       date_debut: partenariat?.date_debut || "",
       date_fin: partenariat?.date_fin || "",
+      date_prise_effet: partenariat?.date_prise_effet || "",
       statut: partenariat?.statut || "en_cours",
       description: partenariat?.description || "",
     },
@@ -131,6 +132,11 @@ const PartenariatForm = ({ open, onClose, onSubmit, partenariat, loading }: Part
             <div className="space-y-2">
               <Label htmlFor="date_fin">Date de fin</Label>
               <Input id="date_fin" type="date" {...register("date_fin")} />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="date_prise_effet">Date prise d&apos;effet</Label>
+              <Input id="date_prise_effet" type="date" {...register("date_prise_effet")} />
             </div>
 
             <div className="space-y-2">
