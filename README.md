@@ -1,194 +1,124 @@
-# Agent Hub – How to Run & Project Structure
+## Partenariats CNSS (Agent Hub)
 
-## How to Run
+Application de **gestion des partenariats**.
 
-You need **two terminals**: one for the backend, one for the frontend.
+- **Backend**: Node.js (Express) + MongoDB (`server.mjs`)
+- **Frontend**: React + TypeScript + Vite (`agent-hub-main/`)
+- **Docker**: `docker-compose.yml` (Mongo + API + Web)
 
-### 1. Backend (API + SQLite)
+---
 
-From the **project root** (`agent-hub-main/`):
+## Architecture (dossiers)
+
+- **Backend**
+  - `server.mjs`: API Express (port **4000**)
+  - `create-admin.mjs`: script pour créer/mettre à jour des comptes admin
+  - `Dockerfile.server`: image Docker de l’API
+- **Frontend**
+  - `agent-hub-main/`: app Vite (port **8080**)
+  - `agent-hub-main/Dockerfile`: build + serveur web (nginx)
+  - `agent-hub-main/nginx.conf`: config nginx (SPA fallback)
+
+---
+
+## Prérequis
+
+- Node.js **20+**
+- npm
+- MongoDB **7+** (local ou Docker)
+- (Optionnel) Docker + Docker Compose
+
+---
+
+## Lancer en local (sans Docker full stack)
+
+### 1) Démarrer MongoDB
+
+Option Docker:
 
 ```bash
+docker run -d --name mongo-local -p 27017:27017 mongo:7
+```
+
+### 2) Démarrer le backend (API)
+
+Depuis la racine du projet:
+
+```bash
+npm install
 npm run server
 ```
 
-- Runs Express on **http://localhost:4000**
-- Uses SQLite database **`data.db`** in the same folder (created automatically)
+Par défaut:
+- API: `http://localhost:4000`
+- Mongo: `mongodb://localhost:27017`
+- DB: `agent_hub`
 
-### 2. Frontend (React app)
+Variables utiles:
+- `MONGODB_URI`
+- `MONGODB_DB`
+- `JWT_SECRET`
+- `JWT_EXPIRES_IN`
 
-From the **frontend folder** (`agent-hub-main/agent-hub-main/`):
+### 3) Démarrer le frontend (Vite)
+
+Dans un autre terminal:
 
 ```bash
 cd agent-hub-main
+npm install
 npm run dev
 ```
 
-- Runs Vite dev server (usually **http://localhost:5173**)
-- The app calls the API at `http://localhost:4000` (or `VITE_API_URL` if set)
-
-### 3. Use the app
-
-1. Open **http://localhost:5173** in the browser.
-2. Go to **/auth** to **register** or **login** (local accounts, stored in SQLite).
-3. After login you are redirected to the **Dashboard** where you can manage **Partenariats** (create, edit, delete, search, export CSV).
+Ouvrir `http://localhost:8080`.
 
 ---
 
-## Project Structure
+## Lancer avec Docker Compose (recommandé)
 
 ```bash
-agent-hub-main/
-├── server.mjs              # Backend: Express API, SQLite, auth + partenariats CRUD
-├── data.db                 # SQLite database (created on first run)
-├── package.json            # Root deps: express, cors, bcryptjs, better-sqlite3
-├── PROJECT.md              # This file
-│
-└── agent-hub-main/         # Frontend (Vite + React + TypeScript)
-    ├── index.html
-    ├── vite.config.ts
-    ├── tailwind.config.ts
-    ├── package.json        # Frontend deps: react, react-router-dom, @tanstack/react-query, shadcn, etc.
-    │
-    └── src/
-        ├── main.tsx        # Entry: renders App into #root
-        ├── App.tsx         # Routes, AuthProvider, QueryClient; / = Dashboard, /auth = Auth
-        ├── index.css       # Global styles, Tailwind
-        │
-        ├── pages/
-        │   ├── Auth.tsx    # Login / Register form; calls POST /auth/login, /auth/register
-        │   ├── Dashboard.tsx  # Partenariats list, stats, create/edit modal, table, filters
-        │   ├── Index.tsx   # Landing (if used)
-        │   └── NotFound.tsx
-        │
-        ├── hooks/
-        │   ├── useAuth.ts       # Auth context: login, register, logout, session (from localStorage)
-        │   ├── usePartenariats.ts  # TanStack Query: fetch/create/update/delete partenariats (API)
-        │   ├── useAgents.ts     # (Legacy/optional agents feature)
-        │   ├── use-mobile.tsx
-        │   └── use-toast.ts
-        │
-        └── components/
-            ├── AppHeader.tsx       # Top bar, logout
-            ├── PartenariatForm.tsx # Create/Edit form (titre, type, statut, dates, etc.)
-            ├── PartenariatDetail.tsx # View one partenariat
-            ├── PartenariatTable.tsx # Table + search + "Exporter en Excel" (CSV)
-            ├── PartenariatStats.tsx # Cards: Total, Opérationnels, Échus, etc.
-            ├── StatusBadge.tsx     # Badge for statut (e.g. Opérationnel, Échu)
-            ├── NavLink.tsx
-            ├── StatsCards.tsx
-            ├── AgentForm.tsx / AgentTable.tsx / AgentDetail.tsx  # Optional agents UI
-            └── ui/                 # shadcn/ui components (Button, Dialog, Input, etc.)
+docker compose up -d --build
 ```
-bash
 
-## What Each Part Does
+Services / ports:
+- `mongo`: `localhost:27017`
+- `server`: `localhost:4000`
+- `web`: `localhost:8080`
+
+Arrêter:
 
 ```bash
-| Part | Role |
-|------|------|
-| **server.mjs** | Express server. Auth: register, login (JWT not used; session is managed by frontend with token/user in localStorage). Partenariats: CRUD, titre uniqueness. SQLite: `users`, `partenariats` (with `entite_concernee`, etc.). |
-| **data.db** | SQLite file. Tables: `users` (email, password_hash, full_name), `partenariats` (titre, type_partenariat, nature, domaine, entite_cnss, entite_concernee, partenaire, dates, statut, description, created_by, timestamps). |
-| **useAuth** | Provides `session`, `login`, `register`, `logout`. Persists user in localStorage; frontend sends auth header to API where needed. |
-| **usePartenariats** | Fetches partenariats from `GET /partenariats`, creates/updates/deletes via API. Uses TanStack Query for cache and refetch. |
-| **Auth.tsx** | Login/register form; on success stores user and redirects to `/`. |
-| **Dashboard.tsx** | Shows PartenariatStats, filters, PartenariatTable, create/edit dialog (PartenariatForm), delete, and PartenariatDetail. |
-| **PartenariatForm** | Form fields aligned with backend (type, statut, entité concernée, etc.). |
-| **PartenariatTable** | List, search (titre, partenaire, domaine), export filtered list to CSV ("Exporter en Excel"). |
-| **PartenariatStats** | Counts by statut: Total, Opérationnels, Non opérationnels, Échus, À renouveler, En cours. |
+docker compose down
 ```
+
 ---
 
-## Optional: Single-command run
+## Comptes admin (seed)
 
-From project root, in one terminal you can run both (backend in background):
+Le script `create-admin.mjs` crée / met à jour des comptes admin dans MongoDB:
 
 ```bash
-npm run server &
-cd agent-hub-main && npm run dev
+node create-admin.mjs
 ```
 
-Then open **http://localhost:5173** and use **/auth** to log in.
+Il utilise `MONGODB_URI` et `MONGODB_DB` (valeurs par défaut: `mongodb://localhost:27017` / `agent_hub`).
 
-​1. Project Overview
-​Project Title: Implementation of a management and monitoring tool for National Partnerships.
-​Organization: CNSS (National Social Security Fund), Morocco.
-​Department: Directorate of Studies, Communication and Development / International Relations and Partnerships Department.
-​Date: December 2025.
-​Goal: To digitize, organize, and secure the lifecycle of partnership agreements, replacing reliance on emails and unstructured documents.
+---
 
-​2. Key Objectives
-​The document outlines three main goals for this application:
-​Facilitation: Improve monitoring and steering through clear, consolidated indicators.
-​Traceability & Efficiency: Reduce email dependency, ensure a history of actions is kept, and structure the data.
-​Security: Ensure secure and long-term archiving of signed conventions and documents.
+## Rôles & permissions (résumé)
 
-​3. Functional Architecture
-​The application is divided into several specific modules and interfaces:
+Le backend définit les rôles suivants (voir `server.mjs`):
+- **admin**: création / modification / suppression (toutes entreprises)
+- **editor**: création / modification / suppression (son entreprise)
+- **spectate**: lecture seule (son entreprise)
+- **ajouter**: création uniquement
+- **modifier**: modification uniquement
+- **suppression**: suppression uniquement
 
---> ​A. General Settings (Admin Level)
-​Managed by a Functional Administrator, this module defines the reference data:
-​Types, Nature, and Domains of partnerships (based on Annexes 1, 2, 3).
-​List of external partners.
-​Internal CNSS entities responsible (Central, DR, PUM, etc.).
-​State Mapping:
-​Request States: Consult, Modify, Cancel, Validate.
-​Partnership States: Operational, Non-operational, To be renewed, Expired, In progress.
+---
 
-​--> B. Workflow & Processing Circuit
-​The system must track the lifecycle of a partnership from creation to archiving.
-​Key Actors & Roles:
-​DP/Entities: Design and modification of the project.
-​DCGD: Compliance opinion.
-​DG (Director General): Signature.
-​DAL: Organization of signing ceremonies.
-​DAJSCA: Archiving of signed deliverables.
-​DCRP: Publication on the intranet.
-​Notifications: The system must trigger email notifications to relevant collaborators (e.g., alerting the DCRP when a signed convention is ready for publication).
+## Notes
 
-​--> C. Management Modules (User Interfaces)
-​Login: Secure access.
-​Home Dashboard: tailored to user profiles, showing tasks in progress, alerts, and stats.
-​Creation Interface: Inputting new projects, attaching draft conventions, listing stakeholders to be notified.
-​Engagement Interface: Crucial Step. After signature, the responsible entity inputs specific commitments (engagements) for both parties, including frequencies and deployment dates.
-​Modification & Validation: Allows editing of non-validated requests and changing the status of partnerships (e.g., switching from "Non-operational" to "Operational").
-​Tracking (Suivi): A table allowing actions based on the current state (e.g., if "In Course," one can Consult, Modify, or Validate).
+- Le frontend appelle l’API via `/api` en dev (proxy Vite) et via l’URL configurée par variables Vite si nécessaire.
+- Le conteneur `web` sert une SPA (fallback `index.html`) via la config nginx (`agent-hub-main/nginx.conf`).
 
---> ​D. Reporting & Dashboarding
-​The tool requires robust data visualization and retrieval capabilities:
-​Advanced Search: By keyword, partner, direction, date, etc.
-​Audit Log: A detailed history of who did what and when.
-​Dashboard: KPIs including:
-​Number of partnerships (active, expired, to be renewed).
-​Validation rates and average processing times.
-​Export: Data must be exportable to Excel or PDF.
-
-​E. Stock Management (Legacy Data):
-
-​The system must allow the import ("injection") of existing/old partnerships to build the initial database.
-​Alert System: Automated emails for partnerships nearing expiration to prompt renewal analysis.
-
-​4. User Profiles & Access Control
-​The document defines strict role-based access control (RBAC):
-​Functional Administrator: Manages settings and reference tables.
-​Entry Profile (Profil de saisie): Creates requests.
-​Validation Profile: Validates requests.
-​Consultation Profile: Read-only access for concerned entities.
-​Modification Profile: Updates requests.
-
-​5. Data Structure (Based on Annex 6)
-​The "Situation de suivi" table gives us a glimpse of the required database schema. Key fields include:
-​Partnership ID & Type (Framework Convention, Specific Protocol, Amendment).
-​Nature & Domain.
-​Partner Name & Title/Object of the partnership.
-​Responsible Entity & Concerned Entity.
-​Dates: Signature, Fiscal Year, Effective Date, End Date.
-​Status (Operational, Expired, etc.).
-​Summary of the Workflow Logic
-​Drafting: User creates a request \rightarrow Uploads draft.
-​Validation Loop: Circulates through DCGD/DAL/DG for approval and signature.
-​Activation: Once signed, the status changes \rightarrow Dates and Engagements are entered.
-​Monitoring: The system tracks "Engagements" (deliverables) and expiration dates.
-​Alerting: System warns users when a contract is ending.
-​Archiving: DAJSCA classifies the physical/digital proofs.
-​Would you like me to draft a technical database schema (SQL) or a user flow diagram based on these specifications?
