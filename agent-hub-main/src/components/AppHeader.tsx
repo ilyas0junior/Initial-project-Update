@@ -16,12 +16,16 @@ const AppHeader = ({ userName, isAdmin, onSignOut, userId }: AppHeaderProps) => 
   const isProfileActive = pathname === "/profile" || pathname.startsWith("/profile/");
   const isAdminUsersActive =
     pathname === "/admin/users" || pathname.startsWith("/admin/users/");
+  const isDashboardActive = pathname === "/dashboard" || pathname.startsWith("/dashboard/");
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-card/80 backdrop-blur-md">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6">
         <div className="flex items-center gap-3">
-          <Link to="/" className="flex items-center gap-3">
+          <Link
+            to="/dashboard"
+            className={isDashboardActive ? "flex items-center gap-3" : "flex items-center gap-3"}
+          >
             <div className="h-10 w-10 overflow-hidden rounded-[14px] bg-white shadow-card ring-1 ring-border">
               <img
                 src="/cnss-logo.png"

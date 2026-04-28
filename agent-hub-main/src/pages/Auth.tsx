@@ -73,7 +73,7 @@ const Auth = () => {
         description: `Bienvenue ${user.nickname || user.fullName || user.email} !`,
       });
       const goToAdmin = user.role === "admin" || (user.email && ADMIN_EMAILS.includes(user.email));
-      navigate(goToAdmin ? "/admin/users" : "/", { replace: true });
+      navigate(goToAdmin ? "/admin/users" : "/dashboard", { replace: true });
     } catch (error: any) {
       toast({
         title: "Erreur",

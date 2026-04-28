@@ -1,0 +1,10 @@
+{
+  "yaml.schemaStore.enable": false,
+  "yaml.validate": true,
+  "files.associations": {
+    "docker-compose.yml": "yaml",
+    "docker-compose.yaml": "yaml",
+    "compose.yml": "yaml",
+    "compose.yaml": "yaml"
+  }
+}

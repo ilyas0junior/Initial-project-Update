@@ -27,18 +27,21 @@ interface Props {
 const getLabel = (list: { value: string; label: string }[], value: string) =>
   list.find((i) => i.value === value)?.label || value;
 
+const toLc = (v: unknown) => String(v ?? "").toLowerCase();
+
 const PartenariatTable = ({ partenariats, onEdit, onDelete, onView, canModify = true, canEdit, canDelete, showCompany }: Props) => {
   const allowEdit = canEdit !== undefined ? canEdit : canModify;
   const allowDelete = canDelete !== undefined ? canDelete : canModify;
   const [search, setSearch] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
+  const q = toLc(search).trim();
   const filtered = partenariats.filter((p) => {
-    const q = search.toLowerCase();
+    if (!q) return true;
     return (
-      p.titre.toLowerCase().includes(q) ||
-      p.partenaire.toLowerCase().includes(q) ||
-      p.domaine.toLowerCase().includes(q)
+      toLc(p?.titre).includes(q) ||
+      toLc(p?.partenaire).includes(q) ||
+      toLc(p?.domaine).includes(q)
     );
   });
 

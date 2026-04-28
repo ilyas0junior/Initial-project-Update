@@ -22,7 +22,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   const { session, loading, isAdmin } = useAuth();
   if (loading) return <div className="flex min-h-screen items-center justify-center text-muted-foreground">Chargement...</div>;
-  if (session) return <Navigate to={isAdmin ? "/admin/users" : "/"} replace />;
+  if (session) return <Navigate to={isAdmin ? "/admin/users" : "/dashboard"} replace />;
   return <>{children}</>;
 };
 
@@ -34,7 +34,9 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            {/* Default entry: always show login first */}
+            <Route path="/" element={<Navigate to="/auth" replace />} />
+            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/admin/users" element={<ProtectedRoute><AdminUsers /></ProtectedRoute>} />
             <Route path="/auth" element={<PublicRoute><Auth /></PublicRoute>} />

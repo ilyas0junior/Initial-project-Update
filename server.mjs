@@ -349,36 +349,46 @@ app.get("/api/users/pending", requireAdmin, async (req, res) => {
 });
 
 app.get("/api/logs", requireAdmin, async (req, res) => {
-  const logs = await userLogsCol
-    .aggregate([
-      {
-        $lookup: {
-          from: "users",
-          let: { uid: { $toObjectId: "$user_id" } },
-          pipeline: [
-            { $match: { $expr: { $eq: ["$_id", "$$uid"] } } },
-            { $project: { email: 1, nickname: 1, full_name: 1 } },
-          ],
-          as: "u",
+  try {
+    // $toObjectId throws if user_id is not a 24-hex string; use $convert to be safe.
+    const logs = await userLogsCol
+      .aggregate([
+        {
+          $lookup: {
+            from: "users",
+            let: {
+              uid: {
+                $convert: { input: "$user_id", to: "objectId", onError: null, onNull: null },
+              },
+            },
+            pipeline: [
+              { $match: { $expr: { $and: [{ $ne: ["$$uid", null] }, { $eq: ["$_id", "$$uid"] }] } } },
+              { $project: { email: 1, nickname: 1, full_name: 1 } },
+            ],
+            as: "u",
+          },
         },
-      },
-      { $unwind: { path: "$u", preserveNullAndEmptyArrays: true } },
-      { $sort: { created_at: -1 } },
-      { $limit: 500 },
-      {
-        $project: {
-          id: { $toString: "$_id" },
-          userId: "$user_id",
-          action: 1,
-          details: 1,
-          createdAt: "$created_at",
-          userEmail: "$u.email",
-          userNickname: { $ifNull: ["$u.nickname", "$u.full_name", "$u.email"] },
+        { $unwind: { path: "$u", preserveNullAndEmptyArrays: true } },
+        { $sort: { created_at: -1 } },
+        { $limit: 500 },
+        {
+          $project: {
+            id: { $toString: "$_id" },
+            userId: "$user_id",
+            action: 1,
+            details: 1,
+            createdAt: "$created_at",
+            userEmail: "$u.email",
+            userNickname: { $ifNull: ["$u.nickname", "$u.full_name", "$u.email"] },
+          },
         },
-      },
-    ])
-    .toArray();
-  res.json(logs);
+      ])
+      .toArray();
+    res.json(logs);
+  } catch (e) {
+    console.error("[/api/logs] failed:", e instanceof Error ? e.message : e);
+    res.status(500).json({ message: "Erreur chargement des logs" });
+  }
 });
 
 app.patch("/api/users/:id", requireAdmin, async (req, res) => {
