@@ -173,6 +173,16 @@ function serializePartenariat(doc) {
   };
 }
 
+function getPartenariatScopeFilter(req) {
+  const company = req.user && typeof req.user.company_name === "string" ? req.user.company_name.trim() : "";
+  return req.isAdmin ? {} : (company ? { company_name: company } : { created_by: req.userId });
+}
+
+async function getScopedPartenariats(req) {
+  const rows = await partenariatsCol.find(getPartenariatScopeFilter(req)).sort({ created_at: -1 }).toArray();
+  return rows.map(serializePartenariat);
+}
+
 function toObjectId(id, res) {
   try {
     return new ObjectId(id);
@@ -505,10 +515,26 @@ app.get("/api/companies", requireAdmin, async (req, res) => {
 // ---------- PARTENARIATS ----------
 // Admin: tous les partenariats. Autres rôles: uniquement ceux de leur entreprise (company_name).
 app.get("/api/partenariats", requireUser, async (req, res) => {
-  const company = req.user && typeof req.user.company_name === "string" ? req.user.company_name.trim() : "";
-  const filter = req.isAdmin ? {} : (company ? { company_name: company } : { created_by: req.userId });
-  const rows = await partenariatsCol.find(filter).sort({ created_at: -1 }).toArray();
-  res.json(rows.map(serializePartenariat));
+  const rows = await getScopedPartenariats(req);
+  res.json(rows);
+});
+
+// ---------- AI ASSISTANT ----------
+app.get("/api/ai/insights", requireUser, async (req, res) => {
+  const rows = await getScopedPartenariats(req);
+  res.json(buildPartenariatInsights(rows));
+});
+
+app.post("/api/ai/assistant", requireUser, async (req, res) => {
+  const message = String(req.body?.message ?? "").trim();
+  if (!message) {
+    return res.status(400).json({ message: "Question obligatoire." });
+  }
+  if (message.length > 500) {
+    return res.status(400).json({ message: "Question trop longue." });
+  }
+  const rows = await getScopedPartenariats(req);
+  res.json(answerPartenariatQuestion(message, rows));
 });
 
 function validatePartenariatDates(date_debut, date_fin, date_prise_effet) {
@@ -519,6 +545,155 @@ function validatePartenariatDates(date_debut, date_fin, date_prise_effet) {
     return "La date de prise d'effet ne peut pas être antérieure à la date de début.";
   }
   return null;
+}
+
+function normalizeText(value) {
+  return String(value ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function parseDateOnly(value) {
+  if (!value) return null;
+  const d = new Date(`${value}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function daysUntil(value) {
+  const d = parseDateOnly(value);
+  if (!d) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.ceil((d.getTime() - today.getTime()) / 86400000);
+}
+
+function buildPartenariatInsights(partenariats) {
+  const total = partenariats.length;
+  const operationnels = partenariats.filter((p) => p.statut === "operationnel").length;
+  const enCours = partenariats.filter((p) => p.statut === "en_cours").length;
+  const expired = partenariats.filter((p) => p.statut === "echu" || (daysUntil(p.date_fin) ?? 1) < 0);
+  const renewSoon = partenariats
+    .map((p) => ({ ...p, daysRemaining: daysUntil(p.date_fin) }))
+    .filter((p) => p.statut === "a_renouveler" || (p.daysRemaining != null && p.daysRemaining >= 0 && p.daysRemaining <= 30))
+    .sort((a, b) => (a.daysRemaining ?? 9999) - (b.daysRemaining ?? 9999));
+  const missingDates = partenariats.filter((p) => !p.date_debut || !p.date_fin);
+  const missingDescriptions = partenariats.filter((p) => !p.description || String(p.description).trim().length < 20);
+  const countsByDomaine = partenariats.reduce((acc, p) => {
+    const key = p.domaine || "non_renseigne";
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+  const countsByPartner = partenariats.reduce((acc, p) => {
+    const key = normalizeText(p.partenaire);
+    if (!key) return acc;
+    if (!acc[key]) acc[key] = { name: p.partenaire, count: 0 };
+    acc[key].count += 1;
+    return acc;
+  }, {});
+  const duplicatePartners = Object.values(countsByPartner)
+    .filter((p) => p.count > 1)
+    .sort((a, b) => b.count - a.count);
+  const topDomaines = Object.entries(countsByDomaine)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
+
+  const recommendations = [];
+  if (renewSoon.length > 0) recommendations.push(`Prioriser ${renewSoon.length} partenariat(s) à renouveler ou proche(s) de l'échéance.`);
+  if (expired.length > 0) recommendations.push(`Revoir ${expired.length} partenariat(s) échu(s) pour clôture ou renouvellement.`);
+  if (missingDescriptions.length > 0) recommendations.push(`Compléter les descriptions de ${missingDescriptions.length} partenariat(s).`);
+  if (missingDates.length > 0) recommendations.push(`Renseigner les dates manquantes sur ${missingDates.length} partenariat(s).`);
+  if (duplicatePartners.length > 0) recommendations.push(`Vérifier les doublons potentiels chez ${duplicatePartners.length} partenaire(s).`);
+  if (recommendations.length === 0) recommendations.push("Aucune action critique détectée pour le moment.");
+
+  return {
+    summary: {
+      total,
+      active: operationnels + enCours,
+      operationnels,
+      enCours,
+      expired: expired.length,
+      renewSoon: renewSoon.length,
+      missingDates: missingDates.length,
+      missingDescriptions: missingDescriptions.length,
+      duplicatePartners: duplicatePartners.length,
+    },
+    topDomaines,
+    urgentPartenariats: renewSoon.slice(0, 5).map((p) => ({
+      id: p.id,
+      titre: p.titre,
+      partenaire: p.partenaire,
+      date_fin: p.date_fin,
+      statut: p.statut,
+      daysRemaining: p.daysRemaining,
+    })),
+    recommendations,
+  };
+}
+
+function formatPartenariatLine(p) {
+  const dateFin = p.date_fin ? `, fin: ${p.date_fin}` : "";
+  return `${p.titre} (${p.partenaire || "partenaire non renseigné"}${dateFin}, statut: ${p.statut})`;
+}
+
+function answerPartenariatQuestion(message, partenariats) {
+  const q = normalizeText(message);
+  const insights = buildPartenariatInsights(partenariats);
+  let matches = [];
+  let intro = "";
+
+  if (q.includes("expire") || q.includes("echeance") || q.includes("renouvel")) {
+    matches = partenariats
+      .map((p) => ({ ...p, daysRemaining: daysUntil(p.date_fin) }))
+      .filter((p) => p.statut === "a_renouveler" || (p.daysRemaining != null && p.daysRemaining >= 0 && p.daysRemaining <= 60))
+      .sort((a, b) => (a.daysRemaining ?? 9999) - (b.daysRemaining ?? 9999));
+    intro = matches.length
+      ? `${matches.length} partenariat(s) demandent une attention sur l'échéance.`
+      : "Aucun partenariat proche de l'échéance n'a été détecté.";
+  } else if (q.includes("echu") || q.includes("expire")) {
+    matches = partenariats.filter((p) => p.statut === "echu" || (daysUntil(p.date_fin) ?? 1) < 0);
+    intro = matches.length ? `${matches.length} partenariat(s) sont échus.` : "Aucun partenariat échu détecté.";
+  } else if (q.includes("actif") || q.includes("operationnel") || q.includes("en cours")) {
+    matches = partenariats.filter((p) => ["operationnel", "en_cours"].includes(p.statut));
+    intro = `${matches.length} partenariat(s) sont actifs ou en cours.`;
+  } else if (q.includes("risque") || q.includes("probleme") || q.includes("manquant")) {
+    matches = partenariats.filter((p) => !p.date_fin || !p.description || String(p.description).trim().length < 20 || p.statut === "echu");
+    intro = matches.length
+      ? `${matches.length} partenariat(s) présentent un risque ou une donnée à compléter.`
+      : "Aucun risque simple détecté sur les données visibles.";
+  } else {
+    const tokens = q.split(/\s+/).filter((token) => token.length >= 4);
+    matches = partenariats.filter((p) => {
+      const haystack = normalizeText([p.titre, p.partenaire, p.domaine, p.nature, p.type_partenariat, p.entite_cnss, p.description].join(" "));
+      return tokens.some((token) => haystack.includes(token));
+    });
+    intro = matches.length
+      ? `J'ai trouvé ${matches.length} partenariat(s) correspondant à votre question.`
+      : `Je peux analyser ${partenariats.length} partenariat(s). Essayez par exemple: "Quels partenariats expirent bientôt ?"`;
+  }
+
+  const visibleMatches = matches.slice(0, 6);
+  const details = visibleMatches.map((p) => `- ${formatPartenariatLine(p)}`).join("\n");
+  const answer = details
+    ? `${intro}\n\n${details}`
+    : `${intro}\n\nSynthèse: ${insights.summary.active} actif(s), ${insights.summary.expired} échu(s), ${insights.summary.renewSoon} à surveiller.`;
+
+  return {
+    answer,
+    matches: visibleMatches.map((p) => ({
+      id: p.id,
+      titre: p.titre,
+      partenaire: p.partenaire,
+      statut: p.statut,
+      date_fin: p.date_fin,
+    })),
+    suggestedQuestions: [
+      "Quels partenariats expirent bientôt ?",
+      "Quels partenariats sont opérationnels ?",
+      "Quels dossiers ont des informations manquantes ?",
+    ],
+  };
 }
 
 app.post("/api/partenariats", requireUser, async (req, res) => {

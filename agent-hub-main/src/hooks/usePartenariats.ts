@@ -21,7 +21,7 @@ export interface Partenariat {
   updated_at: string;
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? "" : "http://localhost:4000");
+export const API_BASE_URL = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? "" : "http://localhost:4000");
 
 function getStoredToken(): string | undefined {
   try {
@@ -34,7 +34,7 @@ function getStoredToken(): string | undefined {
   }
 }
 
-function getAuthHeaders(userId?: string) {
+export function getAuthHeaders(userId?: string) {
   const h: Record<string, string> = {};
   const token = getStoredToken();
   if (token) h["Authorization"] = `Bearer ${token}`;

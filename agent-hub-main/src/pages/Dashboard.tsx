@@ -17,6 +17,12 @@ import PartenariatStats from "@/components/PartenariatStats";
 import PartenariatTable from "@/components/PartenariatTable";
 import PartenariatForm from "@/components/PartenariatForm";
 import PartenariatDetail from "@/components/PartenariatDetail";
+import AiInsightsCard from "@/components/AiInsightsCard";
+import AiAssistantPanel from "@/components/AiAssistantPanel";
+
+type PartenariatFormData = Omit<Partenariat, "id" | "created_at" | "updated_at" | "created_by">;
+
+const getErrorMessage = (err: unknown) => (err instanceof Error ? err.message : "Une erreur est survenue.");
 
 const Dashboard = () => {
   const { session, signOut, isAdmin, canCreatePartenariat, canEditPartenariat, canDeletePartenariat } = useAuth();
@@ -43,7 +49,7 @@ const Dashboard = () => {
     setSearchParams(next, { replace: true });
   }, [partenariats, isLoading, searchParams, setSearchParams]);
 
-  const handleCreate = (data: any) => {
+  const handleCreate = (data: PartenariatFormData) => {
     createP.mutate(
       data,
       {
@@ -51,17 +57,17 @@ const Dashboard = () => {
           toast({ title: "Partenariat créé avec succès" });
           setFormOpen(false);
         },
-        onError: (err: any) =>
+        onError: (err: unknown) =>
           toast({
             title: "Erreur",
-            description: err.message,
+            description: getErrorMessage(err),
             variant: "destructive",
           }),
       },
     );
   };
 
-  const handleUpdate = (data: any) => {
+  const handleUpdate = (data: PartenariatFormData) => {
     if (!editItem) return;
     updateP.mutate(
       { id: editItem.id, ...data },
@@ -70,10 +76,10 @@ const Dashboard = () => {
           toast({ title: "Partenariat mis à jour avec succès" });
           setEditItem(null);
         },
-        onError: (err: any) =>
+        onError: (err: unknown) =>
           toast({
             title: "Erreur technique",
-            description: err.message,
+            description: getErrorMessage(err),
             variant: "destructive",
           }),
       }
@@ -83,10 +89,10 @@ const Dashboard = () => {
   const handleDelete = (id: string) => {
     deleteP.mutate(id, {
       onSuccess: () => toast({ title: "Partenariat supprimé" }),
-      onError: (err: any) =>
+      onError: (err: unknown) =>
         toast({
           title: "Erreur",
-          description: err.message,
+          description: getErrorMessage(err),
           variant: "destructive",
         }),
     });
@@ -131,6 +137,11 @@ const Dashboard = () => {
 
         <div className="animate-fade-in">
           <PartenariatStats partenariats={partenariats} />
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(340px,420px)]">
+          <AiInsightsCard userId={userId} />
+          <AiAssistantPanel userId={userId} />
         </div>
 
         <div className="animate-fade-in animate-delay-100">
