@@ -9,6 +9,7 @@ import { Search, Pencil, Trash2, Eye } from "lucide-react";
 import StatusBadge from "@/components/StatusBadge";
 import type { Partenariat } from "@/hooks/usePartenariats";
 import { TYPES_PARTENARIAT, ENTITES_CNSS } from "@/hooks/usePartenariats";
+import { formatDate } from "@/lib/dateFormat";
 
 interface Props {
   partenariats: Partenariat[];
@@ -84,12 +85,12 @@ const PartenariatTable = ({ partenariats, onEdit, onDelete, onView, canModify = 
       getLabel(ENTITES_CNSS, p.entite_cnss),
       p.entite_concernee ? getLabel(ENTITES_CNSS, p.entite_concernee) : "",
       p.partenaire,
-      p.date_debut ?? "",
-      p.date_fin ?? "",
-      p.date_prise_effet ?? "",
+      formatDate(p.date_debut),
+      formatDate(p.date_fin),
+      formatDate(p.date_prise_effet),
       p.statut,
       p.description ?? "",
-      p.created_at,
+      formatDate(p.created_at),
       p.created_by ?? "",
     ]);
 

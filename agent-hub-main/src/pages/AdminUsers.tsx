@@ -50,6 +50,7 @@ import {
 import { usePartenariats } from "@/hooks/usePartenariats";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { formatDate } from "@/lib/dateFormat";
 
 const ROLE_LABELS: Record<UserRole, string> = {
   admin: "Administrateur (accès total, toutes entreprises)",
@@ -550,14 +551,10 @@ export default function AdminUsers() {
                               </Select>
                             </td>
                             <td className="p-3 text-muted-foreground">
-                              {u.createdAt
-                                ? new Date(u.createdAt).toLocaleString("fr-FR")
-                                : "—"}
+                              {formatDate(u.createdAt)}
                             </td>
                             <td className="p-3 text-muted-foreground">
-                              {u.lastLogin
-                                ? new Date(u.lastLogin).toLocaleString("fr-FR")
-                                : "Jamais"}
+                              {u.lastLogin ? formatDate(u.lastLogin) : "Jamais"}
                             </td>
                             <td className="p-3 flex items-center gap-1">
                               <Button
@@ -626,28 +623,8 @@ export default function AdminUsers() {
                       </thead>
                       <tbody>
                         {users.map((u) => {
-                          const createdStr = u.createdAt
-                            ? (() => {
-                                try {
-                                  return new Date(u.createdAt).toLocaleString(
-                                    "fr-FR",
-                                  );
-                                } catch {
-                                  return "—";
-                                }
-                              })()
-                            : "—";
-                          const lastStr = u.lastLogin
-                            ? (() => {
-                                try {
-                                  return new Date(u.lastLogin).toLocaleString(
-                                    "fr-FR",
-                                  );
-                                } catch {
-                                  return "Jamais";
-                                }
-                              })()
-                            : "Jamais";
+                          const createdStr = formatDate(u.createdAt);
+                          const lastStr = u.lastLogin ? formatDate(u.lastLogin) : "Jamais";
                           return (
                             <tr
                               key={u.id}
@@ -721,7 +698,7 @@ export default function AdminUsers() {
                             className="border-b border-border last:border-0"
                           >
                             <td className="p-3 text-muted-foreground">
-                              {new Date(log.createdAt).toLocaleString("fr-FR")}
+                              {formatDate(log.createdAt)}
                             </td>
                             <td className="p-3">
                               {log.userNickname || log.userEmail || log.userId}

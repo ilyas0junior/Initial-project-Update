@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Textarea } from "@/components/ui/textarea";
 import type { Partenariat } from "@/hooks/usePartenariats";
 import { TYPES_PARTENARIAT, NATURES, DOMAINES, ENTITES_CNSS, STATUTS } from "@/hooks/usePartenariats";
+import { formatDate, isValidDisplayDate, parseDisplayDateToIso } from "@/lib/dateFormat";
 
 interface PartenariatFormProps {
   open: boolean;
@@ -31,9 +32,9 @@ const PartenariatForm = ({ open, onClose, onSubmit, partenariat, loading, isAdmi
       entite_cnss: partenariat?.entite_cnss || "entite_centrale",
       entite_concernee: partenariat?.entite_concernee || "entite_centrale",
       partenaire: partenariat?.partenaire || "",
-      date_debut: partenariat?.date_debut || "",
-      date_fin: partenariat?.date_fin || "",
-      date_prise_effet: partenariat?.date_prise_effet || "",
+      date_debut: partenariat?.date_debut ? formatDate(partenariat.date_debut) : "",
+      date_fin: partenariat?.date_fin ? formatDate(partenariat.date_fin) : "",
+      date_prise_effet: partenariat?.date_prise_effet ? formatDate(partenariat.date_prise_effet) : "",
       statut: partenariat?.statut || "en_cours",
       description: partenariat?.description || "",
     },
@@ -48,17 +49,24 @@ const PartenariatForm = ({ open, onClose, onSubmit, partenariat, loading, isAdmi
   const company_name = watch("company_name");
 
   const date_debut = watch("date_debut");
-  const date_fin = watch("date_fin");
-  const date_prise_effet = watch("date_prise_effet");
 
   const handleFormSubmit = (data: any) => {
-    if (data.date_debut && data.date_fin && data.date_fin < data.date_debut) {
+    const dateDebut = parseDisplayDateToIso(data.date_debut);
+    const dateFin = parseDisplayDateToIso(data.date_fin);
+    const datePriseEffet = parseDisplayDateToIso(data.date_prise_effet);
+
+    if (dateDebut && dateFin && dateFin < dateDebut) {
       return; // validation message shown below
     }
-    if (data.date_debut && data.date_prise_effet && data.date_prise_effet < data.date_debut) {
+    if (dateDebut && datePriseEffet && datePriseEffet < dateDebut) {
       return;
     }
-    onSubmit(data);
+    onSubmit({
+      ...data,
+      date_debut: dateDebut,
+      date_fin: dateFin,
+      date_prise_effet: datePriseEffet,
+    });
     reset();
   };
 
@@ -161,18 +169,30 @@ const PartenariatForm = ({ open, onClose, onSubmit, partenariat, loading, isAdmi
 
             <div className="space-y-2">
               <Label htmlFor="date_debut">Date de signature</Label>
-              <Input id="date_debut" type="date" {...register("date_debut")} />
+              <Input
+                id="date_debut"
+                placeholder="DD/MM/YYYY"
+                {...register("date_debut", {
+                  validate: (v) => isValidDisplayDate(v) || "Utilisez le format DD/MM/YYYY.",
+                })}
+              />
+              {errors.date_debut && (
+                <p className="text-xs text-destructive">{errors.date_debut.message as string}</p>
+              )}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="date_fin">Date de fin</Label>
               <Input
                 id="date_fin"
-                type="date"
-                min={date_debut || undefined}
+                placeholder="DD/MM/YYYY"
                 {...register("date_fin", {
-                  validate: (v) =>
-                    !v || !date_debut || v >= date_debut || "La date de fin doit être postérieure ou égale à la date de début.",
+                  validate: (v) => {
+                    const start = parseDisplayDateToIso(date_debut);
+                    const end = parseDisplayDateToIso(v);
+                    if (!isValidDisplayDate(v)) return "Utilisez le format DD/MM/YYYY.";
+                    return !end || !start || end >= start || "La date de fin doit être postérieure ou égale à la date de début.";
+                  },
                 })}
               />
               {errors.date_fin && (
@@ -184,11 +204,14 @@ const PartenariatForm = ({ open, onClose, onSubmit, partenariat, loading, isAdmi
               <Label htmlFor="date_prise_effet">Date prise d&apos;effet</Label>
               <Input
                 id="date_prise_effet"
-                type="date"
-                min={date_debut || undefined}
+                placeholder="DD/MM/YYYY"
                 {...register("date_prise_effet", {
-                  validate: (v) =>
-                    !v || !date_debut || v >= date_debut || "La date de prise d'effet doit être postérieure ou égale à la date de début.",
+                  validate: (v) => {
+                    const start = parseDisplayDateToIso(date_debut);
+                    const effective = parseDisplayDateToIso(v);
+                    if (!isValidDisplayDate(v)) return "Utilisez le format DD/MM/YYYY.";
+                    return !effective || !start || effective >= start || "La date de prise d'effet doit être postérieure ou égale à la date de début.";
+                  },
                 })}
               />
               {errors.date_prise_effet && (

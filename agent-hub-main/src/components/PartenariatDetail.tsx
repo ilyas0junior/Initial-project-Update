@@ -3,8 +3,7 @@ import { Separator } from "@/components/ui/separator";
 import StatusBadge from "@/components/StatusBadge";
 import type { Partenariat } from "@/hooks/usePartenariats";
 import { TYPES_PARTENARIAT, NATURES, DOMAINES, ENTITES_CNSS } from "@/hooks/usePartenariats";
-import { format } from "date-fns";
-import { fr } from "date-fns/locale";
+import { formatDate } from "@/lib/dateFormat";
 import { FileText, Building, Globe, Landmark, Calendar, AlignLeft } from "lucide-react";
 
 interface Props {
@@ -15,11 +14,6 @@ interface Props {
 
 const getLabel = (list: { value: string; label: string }[], value: string) =>
   list.find((i) => i.value === value)?.label || value;
-
-const formatDate = (date: string | null) => {
-  if (!date) return "—";
-  return format(new Date(date), "dd MMMM yyyy", { locale: fr });
-};
 
 const PartenariatDetail = ({ partenariat, open, onClose }: Props) => {
   if (!partenariat) return null;

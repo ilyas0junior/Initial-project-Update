@@ -16,7 +16,7 @@ export interface Partenariat {
   statut: string;
   description: string | null;
   company_name: string | null;
-  created_by: string | null;
+  created_by: string | "username";
   created_at: string;
   updated_at: string;
 }
@@ -85,13 +85,13 @@ export const STATUTS = [
   { value: "en_cours", label: "En cours" },
 ];
 
-export const usePartenariats = (userId?: string) => {
+export const usePartenariats = (username?: string) => {
   return useQuery({
-    queryKey: ["partenariats", userId || null],
-    enabled: Boolean(userId),
+    queryKey: ["partenariats", username || null],
+    enabled: Boolean(username),
     queryFn: async () => {
       const response = await fetch(`${API_BASE_URL}/api/partenariats`, {
-        headers: getAuthHeaders(userId),
+        headers: getAuthHeaders(username),
       });
       if (!response.ok) {
         throw new Error("Erreur lors du chargement des partenariats.");

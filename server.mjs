@@ -167,7 +167,7 @@ function serializePartenariat(doc) {
     statut: doc.statut,
     description: doc.description,
     company_name: doc.company_name ?? null,
-    created_by: doc.created_by != null ? String(doc.created_by) : null,
+    created_by: doc.created_by != null ? String(doc.created_by) : "user_name",
     created_at: doc.created_at,
     updated_at: doc.updated_at,
   };
@@ -568,6 +568,20 @@ function daysUntil(value) {
   return Math.ceil((d.getTime() - today.getTime()) / 86400000);
 }
 
+function formatDateOnly(value) {
+  if (!value) return "";
+  const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) {
+    const [, year, month, day] = match;
+    return `${day}/${month}/${year}`;
+  }
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value);
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  return `${day}/${month}/${d.getFullYear()}`;
+}
+
 function buildPartenariatInsights(partenariats) {
   const total = partenariats.length;
   const operationnels = partenariats.filter((p) => p.statut === "operationnel").length;
@@ -633,7 +647,7 @@ function buildPartenariatInsights(partenariats) {
 }
 
 function formatPartenariatLine(p) {
-  const dateFin = p.date_fin ? `, fin: ${p.date_fin}` : "";
+  const dateFin = p.date_fin ? `, fin: ${formatDateOnly(p.date_fin)}` : "";
   return `${p.titre} (${p.partenaire || "partenaire non renseigné"}${dateFin}, statut: ${p.statut})`;
 }
 
